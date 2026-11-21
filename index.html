@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f6b4f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Essensplaner">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Essensplaner</title>
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --karte: #ffffff;
+      --text: #1f2a24;
+      --leise: #5c6b63;
+      --akzent: #2f6b4f;
+      --akzent-text: #ffffff;
+      --rand: #e2ded5;
+      --fehler: #b3261e;
+      --fehler-bg: #fdecea;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #151a17;
+        --karte: #1f2622;
+        --text: #eef2ef;
+        --leise: #a3b1a9;
+        --akzent: #7cc4a0;
+        --akzent-text: #10251a;
+        --rand: #2e3832;
+        --fehler: #f2b8b5;
+        --fehler-bg: #3a1f1d;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 17px;
+      line-height: 1.45;
+      -webkit-text-size-adjust: 100%;
+    }
+    main {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+    }
+    h1 { font-size: 26px; margin: 8px 0 16px; }
+    h2 { font-size: 20px; margin: 0 0 12px; }
+    .leise { color: var(--leise); }
+
+    /* Knöpfe */
+    button { font: inherit; cursor: pointer; }
+    .knopf {
+      min-height: 48px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      border: 1px solid var(--rand);
+      background: var(--karte);
+      color: var(--text);
+      font-weight: 600;
+    }
+    .knopf.haupt { background: var(--akzent); color: var(--akzent-text); border-color: var(--akzent); }
+    .knopf.gefahr { color: var(--fehler); }
+    .knopf.breit { width: 100%; }
+    .knopfzeile { display: flex; gap: 12px; margin-top: 20px; }
+    .knopfzeile .knopf { flex: 1; }
+
+    /* Liste */
+    .liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .eintrag {
+      display: block; width: 100%; text-align: left;
+      background: var(--karte); color: var(--text);
+      border: 1px solid var(--rand); border-radius: 14px;
+      padding: 14px 16px; min-height: 56px;
+    }
+    .eintrag strong { display: block; font-size: 18px; }
+    .eintrag span { color: var(--leise); font-size: 15px; }
+    .leer {
+      background: var(--karte); border: 1px dashed var(--rand); border-radius: 14px;
+      padding: 24px 16px; text-align: center; color: var(--leise); margin-bottom: 16px;
+    }
+
+    /* Formular */
+    label { display: block; font-weight: 600; margin: 16px 0 6px; }
+    input, select, textarea {
+      font: inherit; color: var(--text); background: var(--karte);
+      border: 1px solid var(--rand); border-radius: 10px;
+      padding: 10px 12px; min-height: 48px; width: 100%;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid var(--akzent); outline-offset: 1px; }
+    .zutat {
+      display: grid;
+      grid-template-columns: 1fr 60px 84px 32px;
+      gap: 6px; margin-bottom: 8px; align-items: center;
+    }
+    .zutat input, .zutat select { padding: 10px 8px; }
+    .zutat .weg {
+      min-height: 44px; padding: 0; border: none; background: none; color: var(--leise);
+      font-size: 22px; line-height: 1;
+    }
+    .spaltenkopf { display: grid; grid-template-columns: 1fr 60px 84px 32px; gap: 6px;
+      font-size: 13px; color: var(--leise); margin: 16px 0 4px; }
+    .meldung {
+      background: var(--fehler-bg); color: var(--fehler);
+      border-radius: 10px; padding: 10px 12px; margin-top: 16px;
+    }
+    .zurueck { background: none; border: none; color: var(--akzent); padding: 8px 0; font-weight: 600; min-height: 44px; }
+
+    /* Wochenplan */
+    .tag {
+      background: var(--karte); border: 1px solid var(--rand); border-radius: 14px;
+      padding: 12px 14px 6px; margin-bottom: 12px;
+    }
+    .tag.heute { border-color: var(--akzent); border-width: 2px; }
+    .tag h2 { font-size: 18px; margin: 0 0 6px; display: flex; justify-content: space-between; align-items: baseline; }
+    .tag h2 small { font-size: 13px; font-weight: 600; color: var(--akzent); }
+    .mahlzeit {
+      display: grid; grid-template-columns: 96px 1fr; gap: 8px; align-items: center;
+      padding: 4px 0 8px;
+    }
+    .mahlzeit span { color: var(--leise); font-size: 15px; }
+    .mahlzeit select.frei { color: var(--leise); }
+    .zaehler { margin: -8px 0 16px; }
+
+    /* Einkaufsliste */
+    .einkauf { gap: 0; background: var(--karte); border: 1px solid var(--rand); border-radius: 14px; overflow: hidden; }
+    .posten {
+      display: grid; grid-template-columns: 26px 76px 1fr; gap: 12px; align-items: center;
+      width: 100%; text-align: left; background: none; border: none; color: var(--text);
+      padding: 12px 16px; border-bottom: 1px solid var(--rand); min-height: 56px;
+    }
+    .einkauf li:last-child .posten { border-bottom: none; }
+    .posten .haken {
+      width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--rand);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .posten.erledigt .haken { background: var(--akzent); border-color: var(--akzent); }
+    .posten.erledigt .haken::after {
+      content: ''; width: 6px; height: 12px; margin-top: -3px;
+      border: solid var(--akzent-text); border-width: 0 3px 3px 0; transform: rotate(45deg);
+    }
+    .posten.erledigt .menge, .posten.erledigt .was { opacity: .5; }
+    .posten.erledigt .was strong { text-decoration: line-through; }
+    .auswahl {
+      background: var(--karte); border: 1px solid var(--rand); border-radius: 14px;
+      padding: 16px; margin-top: 12px; display: grid; gap: 10px;
+    }
+    .auswahl p { margin: 0 0 4px; }
+    .sicherung { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--rand); }
+    .sicherung p { margin: 0; font-size: 15px; }
+    .posten .menge { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+    .posten .was strong { display: block; font-weight: 600; }
+    .posten .was small { color: var(--leise); font-size: 14px; }
+
+    /* Untere Leiste */
+    nav {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: var(--karte); border-top: 1px solid var(--rand);
+      display: flex; justify-content: center;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    nav .innen { display: flex; width: 100%; max-width: 560px; }
+    nav button {
+      flex: 1; min-height: 60px; border: none; background: none;
+      color: var(--leise); font-size: 15px; font-weight: 600;
+    }
+    nav button[aria-current="page"] { color: var(--akzent); box-shadow: inset 0 3px 0 var(--akzent); }
+  </style>
+</head>
+<body>
+  <main id="inhalt"></main>
+
+  <nav aria-label="Bereiche">
+    <div class="innen">
+      <button data-bereich="plan">Wochenplan</button>
+      <button data-bereich="einkauf">Einkauf</button>
+      <button data-bereich="rezepte">Rezepte</button>
+    </div>
+  </nav>
+
+  <script>
+    // ---------- Speicher ----------
+    const SPEICHER_SCHLUESSEL = 'essensplaner.v1';
+    const EINHEITEN = ['', 'g', 'kg', 'ml', 'l', 'Stück', 'EL', 'TL', 'Prise', 'Bund', 'Dose', 'Packung'];
+
+    function leererStand() {
+      return { version: 1, rezepte: [], plan: {}, haken: {} };
+    }
+
+    function laden() {
+      try {
+        const roh = localStorage.getItem(SPEICHER_SCHLUESSEL);
+        if (!roh) return leererStand();
+        const daten = JSON.parse(roh);
+        return Object.assign(leererStand(), daten);
+      } catch (e) {
+        speicherFehler = 'Gespeicherte Daten konnten nicht gelesen werden.';
+        return leererStand();
+      }
+    }
+
+    function speichern() {
+      try {
+        localStorage.setItem(SPEICHER_SCHLUESSEL, JSON.stringify(stand));
+        return true;
+      } catch (e) {
+        alert('Speichern hat nicht geklappt. Bitte prüfe, ob der Browser im privaten Modus läuft.');
+        return false;
+      }
+    }
+
+    let speicherFehler = null;
+    let stand = laden();
+
+    // ---------- Hilfen ----------
+    const $ = (sel, wurzel = document) => wurzel.querySelector(sel);
+    const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (z) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[z]));
+    const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const zahlLesen = (t) => {
+      const s = String(t).trim().replace(',', '.');
+      if (s === '') return null;
+      const n = Number(s);
+      return Number.isFinite(n) ? n : NaN;
+    };
+    const zahlZeigen = (n) => n == null ? '' : String(n).replace('.', ',');
+    const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
+
+    function bekannteZutaten() {
+      const namen = new Map();
+      stand.rezepte.forEach(r => r.zutaten.forEach(z => {
+        const k = z.name.trim().toLowerCase();
+        if (k && !namen.has(k)) namen.set(k, z.name.trim());
+      }));
+      return [...namen.values()].sort((a, b) => a.localeCompare(b, 'de'));
+    }
+
+    // ---------- Navigation ----------
+    let bereich = 'plan';
+    let ansicht = { art: 'liste' }; // für Rezepte: liste | formular
+
+    function zeige(neu) {
+      bereich = neu;
+      ansicht = { art: 'liste' };
+      zeichnen();
+      window.scrollTo(0, 0);
+    }
+
+    document.querySelectorAll('nav button').forEach(b => {
+      b.addEventListener('click', () => zeige(b.dataset.bereich));
+    });
+
+    function zeichnen() {
+      document.querySelectorAll('nav button').forEach(b => {
+        if (b.dataset.bereich === bereich) b.setAttribute('aria-current', 'page');
+        else b.removeAttribute('aria-current');
+      });
+      const ziel = $('#inhalt');
+      if (bereich === 'rezepte') {
+        if (ansicht.art === 'formular') zeichneFormular(ziel, ansicht.id);
+        else zeichneRezeptliste(ziel);
+      } else if (bereich === 'plan') {
+        zeichnePlan(ziel);
+      } else {
+        zeichneEinkauf(ziel);
+      }
+      if (speicherFehler) {
+        ziel.insertAdjacentHTML('afterbegin', `<div class="meldung">${esc(speicherFehler)}</div>`);
+      }
+    }
+
+    // ---------- Wochenplan ----------
+    const TAGE = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+    const MAHLZEITEN = [
+      { id: 'fruehstueck', name: 'Frühstück' },
+      { id: 'mittag', name: 'Mittagessen' },
+      { id: 'abend', name: 'Abendessen' },
+    ];
+    const planSchluessel = (tag, mahlzeit) => `${tag}-${mahlzeit}`;
+
+    function zeichnePlan(ziel) {
+      const rezepte = [...stand.rezepte].sort(nachName);
+      if (rezepte.length === 0) {
+        ziel.innerHTML = `<h1>Wochenplan</h1>
+          <div class="leer">Lege zuerst ein paar Rezepte an. Danach wählst du hier pro Mahlzeit eins aus.</div>
+          <button class="knopf haupt breit" id="zu-rezepten">Zu den Rezepten</button>`;
+        $('#zu-rezepten').addEventListener('click', () => zeige('rezepte'));
+        return;
+      }
+
+      const heute = (new Date().getDay() + 6) % 7 + 1; // 1 = Montag
+      const geplant = Object.keys(stand.plan).length;
+      let html = `<h1>Wochenplan</h1><p class="leise zaehler">${geplant} von 21 Mahlzeiten geplant</p>`;
+
+      TAGE.forEach((tagName, i) => {
+        const tag = i + 1;
+        html += `<section class="tag ${tag === heute ? 'heute' : ''}">
+          <h2>${tagName}${tag === heute ? '<small>heute</small>' : ''}</h2>`;
+        MAHLZEITEN.forEach(m => {
+          const gewaehlt = stand.plan[planSchluessel(tag, m.id)] || '';
+          const optionen = ['<option value="">– nichts geplant –</option>']
+            .concat(rezepte.map(r => `<option value="${esc(r.id)}" ${r.id === gewaehlt ? 'selected' : ''}>${esc(r.name)}</option>`))
+            .join('');
+          html += `<div class="mahlzeit">
+            <span>${m.name}</span>
+            <select class="${gewaehlt ? '' : 'frei'}" data-schluessel="${planSchluessel(tag, m.id)}" aria-label="${tagName} ${m.name}">${optionen}</select>
+          </div>`;
+        });
+        html += '</section>';
+      });
+      ziel.innerHTML = html;
+
+      ziel.querySelectorAll('select[data-schluessel]').forEach(sel => {
+        sel.addEventListener('change', () => {
+          const k = sel.dataset.schluessel;
+          if (sel.value) stand.plan[k] = sel.value;
+          else delete stand.plan[k];
+          speichern();
+          sel.classList.toggle('frei', !sel.value);
+          $('.zaehler').textContent = `${Object.keys(stand.plan).length} von 21 Mahlzeiten geplant`;
+        });
+      });
+    }
+
+    // ---------- Einkaufsliste ----------
+    // kg und l werden zum Zusammenzählen in g und ml umgerechnet
+    const BASIS = { kg: { einheit: 'g', faktor: 1000 }, l: { einheit: 'ml', faktor: 1000 } };
+
+    function mengeText(menge, einheit) {
+      if (menge == null) return '';
+      let m = menge, e = einheit;
+      if (e === 'g' && m >= 1000) { m = m / 1000; e = 'kg'; }
+      if (e === 'ml' && m >= 1000) { m = m / 1000; e = 'l'; }
+      const zahl = (Math.round(m * 100) / 100).toLocaleString('de-DE');
+      return e ? `${zahl} ${e}` : zahl;
+    }
+
+    function einkaufsliste() {
+      const posten = new Map();
+      Object.entries(stand.plan).forEach(([, rezeptId]) => {
+        const rezept = stand.rezepte.find(r => r.id === rezeptId);
+        if (!rezept) return;
+        rezept.zutaten.forEach(z => {
+          const basis = BASIS[z.einheit];
+          const einheit = basis ? basis.einheit : (z.einheit || '');
+          const menge = z.menge == null ? null : z.menge * (basis ? basis.faktor : 1);
+          const schluessel = `${z.name.trim().toLowerCase()}|${einheit}`;
+          let p = posten.get(schluessel);
+          if (!p) {
+            p = { schluessel, name: z.name.trim(), einheit, menge: null, rezepte: new Map() };
+            posten.set(schluessel, p);
+          }
+          if (menge != null) p.menge = (p.menge || 0) + menge;
+          p.rezepte.set(rezept.name, (p.rezepte.get(rezept.name) || 0) + 1);
+        });
+      });
+      return [...posten.values()].sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+    }
+
+    function zeichneEinkauf(ziel) {
+      const liste = einkaufsliste();
+      const offen = 21 - Object.keys(stand.plan).length;
+
+      if (Object.keys(stand.plan).length === 0) {
+        ziel.innerHTML = `<h1>Einkauf</h1>
+          <div class="leer">Im Wochenplan ist noch nichts geplant. Sobald du Rezepte auswählst, erscheint hier die Einkaufsliste.</div>
+          <button class="knopf haupt breit" id="zum-plan">Zum Wochenplan</button>`;
+        $('#zum-plan').addEventListener('click', () => zeige('plan'));
+        return;
+      }
+
+      // Offene oben, abgehakte unten (jeweils alphabetisch)
+      const istAbgehakt = (p) => !!stand.haken[p.schluessel];
+      const sortiert = [...liste.filter(p => !istAbgehakt(p)), ...liste.filter(istAbgehakt)];
+      const erledigt = liste.filter(istAbgehakt).length;
+
+      let html = `<h1>Einkauf</h1><p class="leise zaehler">${erledigt} von ${liste.length} abgehakt`;
+      if (offen > 0) html += ` · ${offen} ${offen === 1 ? 'Mahlzeit' : 'Mahlzeiten'} noch nicht geplant`;
+      html += '</p>';
+
+      if (liste.length === 0) {
+        html += '<div class="leer">Die geplanten Rezepte haben noch keine Zutaten.</div>';
+      } else {
+        html += '<ul class="liste einkauf">' + sortiert.map(p => `
+          <li><button class="posten ${istAbgehakt(p) ? 'erledigt' : ''}" data-schluessel="${esc(p.schluessel)}" role="checkbox" aria-checked="${istAbgehakt(p)}">
+            <span class="haken" aria-hidden="true"></span>
+            <span class="menge">${esc(mengeText(p.menge, p.einheit))}</span>
+            <span class="was"><strong>${esc(p.name)}</strong><small>${esc([...p.rezepte].map(([n, anzahl]) => anzahl > 1 ? `${n} (${anzahl}×)` : n).join(', '))}</small></span>
+          </button></li>`).join('') + '</ul>';
+      }
+      html += `<div class="knopfzeile"><button class="knopf breit" id="neue-woche">Neue Woche starten</button></div>
+        <div id="neue-woche-auswahl" hidden>
+          <div class="auswahl">
+            <p><strong>Neue Woche starten</strong><br><span class="leise">Alle Häkchen werden entfernt. Was soll mit dem Wochenplan passieren?</span></p>
+            <button class="knopf breit" data-wahl="behalten">Plan behalten</button>
+            <button class="knopf breit gefahr" data-wahl="leeren">Plan leeren</button>
+            <button class="knopf breit" data-wahl="abbrechen">Abbrechen</button>
+          </div>
+        </div>`;
+      ziel.innerHTML = html;
+
+      ziel.querySelectorAll('.posten').forEach(b => {
+        b.addEventListener('click', () => {
+          const k = b.dataset.schluessel;
+          if (stand.haken[k]) delete stand.haken[k];
+          else stand.haken[k] = true;
+          speichern();
+          zeichnen();
+        });
+      });
+
+      const auswahl = $('#neue-woche-auswahl');
+      $('#neue-woche').addEventListener('click', () => {
+        auswahl.hidden = false;
+        auswahl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+      auswahl.addEventListener('click', (e) => {
+        const wahl = e.target.dataset.wahl;
+        if (!wahl) return;
+        if (wahl === 'abbrechen') { auswahl.hidden = true; return; }
+        stand.haken = {};
+        if (wahl === 'leeren') stand.plan = {};
+        speichern();
+        zeige(wahl === 'leeren' ? 'plan' : 'einkauf');
+      });
+    }
+
+    // ---------- Sicherung ----------
+    function sicherungSpeichern() {
+      const datum = new Date().toISOString().slice(0, 10);
+      const name = `essensplaner-sicherung-${datum}.json`;
+      const blob = new Blob([JSON.stringify(stand, null, 2)], { type: 'application/json' });
+      const datei = new File([blob], name, { type: 'application/json' });
+      // Am Handy: Teilen-Menü (z. B. „In Dateien sichern“), sonst normaler Download
+      if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+        navigator.share({ files: [datei], title: 'Essensplaner-Sicherung' }).catch(() => {});
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function sicherungPruefen(daten) {
+      if (!daten || typeof daten !== 'object' || !Array.isArray(daten.rezepte)) return false;
+      if (daten.plan && typeof daten.plan !== 'object') return false;
+      return daten.rezepte.every(r => r && typeof r.id === 'string' && typeof r.name === 'string' && Array.isArray(r.zutaten));
+    }
+
+    function sicherungLaden(datei) {
+      const leser = new FileReader();
+      leser.onload = () => {
+        let daten;
+        try { daten = JSON.parse(leser.result); } catch (e) { daten = null; }
+        if (!sicherungPruefen(daten)) {
+          alert('Diese Datei ist keine gültige Essensplaner-Sicherung.');
+          return;
+        }
+        const anzahl = daten.rezepte.length;
+        if (!confirm(`Sicherung mit ${anzahl} ${anzahl === 1 ? 'Rezept' : 'Rezepten'} laden? Deine jetzigen Daten werden dabei ersetzt.`)) return;
+        stand = Object.assign(leererStand(), daten);
+        if (speichern()) {
+          alert('Sicherung geladen.');
+          zeige('plan');
+        }
+      };
+      leser.onerror = () => alert('Die Datei konnte nicht gelesen werden.');
+      leser.readAsText(datei);
+    }
+
+    // ---------- Rezepte: Liste ----------
+    function zeichneRezeptliste(ziel) {
+      const rezepte = [...stand.rezepte].sort(nachName);
+      let html = '<h1>Rezepte</h1>';
+      if (rezepte.length === 0) {
+        html += '<div class="leer">Noch keine Rezepte. Lege dein erstes an.</div>';
+      } else {
+        html += '<ul class="liste">' + rezepte.map(r => {
+          const anzahl = r.zutaten.length;
+          const info = anzahl === 1 ? '1 Zutat' : `${anzahl} Zutaten`;
+          return `<li><button class="eintrag" data-id="${esc(r.id)}"><strong>${esc(r.name)}</strong><span>${info}</span></button></li>`;
+        }).join('') + '</ul>';
+      }
+      html += '<div class="knopfzeile"><button class="knopf haupt" id="neu">+ Neues Rezept</button></div>';
+      html += `<section class="sicherung">
+        <h2>Sicherung</h2>
+        <p class="leise">Speichert Rezepte, Wochenplan und Häkchen als Datei. Am besten nach größeren Änderungen, z. B. in der Dateien-App.</p>
+        <div class="knopfzeile">
+          <button class="knopf" id="sichern">Sichern</button>
+          <button class="knopf" id="laden">Laden</button>
+        </div>
+        <input type="file" id="sicherung-datei" accept=".json,application/json" hidden>
+      </section>`;
+      ziel.innerHTML = html;
+
+      $('#sichern').addEventListener('click', sicherungSpeichern);
+      $('#laden').addEventListener('click', () => $('#sicherung-datei').click());
+      $('#sicherung-datei').addEventListener('change', (e) => {
+        const datei = e.target.files[0];
+        if (datei) sicherungLaden(datei);
+        e.target.value = '';
+      });
+
+      $('#neu').addEventListener('click', () => { ansicht = { art: 'formular', id: null }; zeichnen(); });
+      ziel.querySelectorAll('.eintrag').forEach(b => {
+        b.addEventListener('click', () => { ansicht = { art: 'formular', id: b.dataset.id }; zeichnen(); window.scrollTo(0, 0); });
+      });
+    }
+
+    // ---------- Rezepte: Formular ----------
+    function zutatZeile(z = { name: '', menge: null, einheit: '' }) {
+      const optionen = EINHEITEN.map(e =>
+        `<option value="${esc(e)}" ${e === (z.einheit || '') ? 'selected' : ''}>${e === '' ? '–' : esc(e)}</option>`
+      ).join('');
+      return `<div class="zutat">
+        <input class="z-name" list="zutatenvorschlaege" placeholder="z. B. Nudeln" value="${esc(z.name)}" aria-label="Zutat" autocapitalize="sentences">
+        <input class="z-menge" inputmode="decimal" placeholder="200" value="${esc(zahlZeigen(z.menge))}" aria-label="Menge">
+        <select class="z-einheit" aria-label="Einheit">${optionen}</select>
+        <button type="button" class="weg" aria-label="Zutat entfernen">×</button>
+      </div>`;
+    }
+
+    function zeichneFormular(ziel, id) {
+      const rezept = id ? stand.rezepte.find(r => r.id === id) : null;
+      const r = rezept || { name: '', notiz: '', zutaten: [] };
+      const zutaten = r.zutaten.length ? r.zutaten : [{ name: '', menge: null, einheit: '' }];
+
+      ziel.innerHTML = `
+        <button class="zurueck" id="zurueck">‹ Alle Rezepte</button>
+        <h1>${rezept ? 'Rezept bearbeiten' : 'Neues Rezept'}</h1>
+        <form id="formular" novalidate>
+          <label for="f-name">Name</label>
+          <input id="f-name" value="${esc(r.name)}" placeholder="z. B. Spaghetti Bolognese" autocapitalize="sentences">
+
+          <label>Zutaten <span class="leise">(Mengen für 2 Personen)</span></label>
+          <div class="spaltenkopf" style="margin-top:0"><span>Zutat</span><span>Menge</span><span>Einheit</span><span></span></div>
+          <div id="zutaten">${zutaten.map(zutatZeile).join('')}</div>
+          <button type="button" class="knopf breit" id="zutat-dazu">+ Zutat hinzufügen</button>
+
+          <label for="f-notiz">Notiz zur Zubereitung <span class="leise">(optional)</span></label>
+          <textarea id="f-notiz" placeholder="z. B. Soße 30 Minuten köcheln lassen">${esc(r.notiz)}</textarea>
+
+          <div id="meldung"></div>
+          <div class="knopfzeile">
+            <button type="submit" class="knopf haupt">Speichern</button>
+          </div>
+          ${rezept ? '<div class="knopfzeile"><button type="button" class="knopf gefahr" id="loeschen">Rezept löschen</button></div>' : ''}
+        </form>
+        <datalist id="zutatenvorschlaege">${bekannteZutaten().map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+      `;
+
+      const zutatenBox = $('#zutaten');
+      zutatenBox.addEventListener('click', (e) => {
+        if (e.target.classList.contains('weg')) {
+          e.target.closest('.zutat').remove();
+          if (!zutatenBox.children.length) zutatenBox.insertAdjacentHTML('beforeend', zutatZeile());
+        }
+      });
+      $('#zutat-dazu').addEventListener('click', () => {
+        zutatenBox.insertAdjacentHTML('beforeend', zutatZeile());
+        zutatenBox.lastElementChild.querySelector('.z-name').focus();
+      });
+      $('#zurueck').addEventListener('click', () => { ansicht = { art: 'liste' }; zeichnen(); });
+
+      if (rezept) {
+        $('#loeschen').addEventListener('click', () => {
+          if (!confirm(`„${rezept.name}“ wirklich löschen?`)) return;
+          stand.rezepte = stand.rezepte.filter(x => x.id !== rezept.id);
+          // Rezept auch aus dem Wochenplan entfernen
+          Object.keys(stand.plan).forEach(k => { if (stand.plan[k] === rezept.id) delete stand.plan[k]; });
+          speichern();
+          ansicht = { art: 'liste' };
+          zeichnen();
+        });
+      }
+
+      $('#formular').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fehler = [];
+        const name = $('#f-name').value.trim();
+        if (!name) fehler.push('Bitte gib dem Rezept einen Namen.');
+        const doppelt = stand.rezepte.find(x => x.id !== id && x.name.trim().toLowerCase() === name.toLowerCase());
+        if (name && doppelt) fehler.push(`Es gibt schon ein Rezept „${doppelt.name}“.`);
+
+        const neueZutaten = [];
+        zutatenBox.querySelectorAll('.zutat').forEach((zeile, i) => {
+          const zName = zeile.querySelector('.z-name').value.trim();
+          const mengeText = zeile.querySelector('.z-menge').value;
+          const einheit = zeile.querySelector('.z-einheit').value;
+          if (!zName && !mengeText.trim()) return; // leere Zeile überspringen
+          if (!zName) { fehler.push(`Zeile ${i + 1}: Bitte trage den Namen der Zutat ein.`); return; }
+          const menge = zahlLesen(mengeText);
+          if (Number.isNaN(menge) || (menge != null && menge <= 0)) {
+            fehler.push(`„${zName}“: Die Menge muss eine Zahl größer als 0 sein, z. B. 200 oder 0,5.`);
+            return;
+          }
+          neueZutaten.push({ name: zName, menge, einheit });
+        });
+
+        if (fehler.length) {
+          $('#meldung').innerHTML = `<div class="meldung">${fehler.map(esc).join('<br>')}</div>`;
+          return;
+        }
+
+        const notiz = $('#f-notiz').value.trim();
+        if (rezept) {
+          Object.assign(rezept, { name, notiz, zutaten: neueZutaten });
+        } else {
+          stand.rezepte.push({ id: neueId(), name, notiz, zutaten: neueZutaten });
+        }
+        if (speichern()) {
+          ansicht = { art: 'liste' };
+          zeichnen();
+          window.scrollTo(0, 0);
+        }
+      });
+    }
+
+    zeichnen();
+  </script>
+</body>
+</html>
